@@ -1,0 +1,402 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* JKR DARK THEME — always dark, no light mode toggle needed */
+:root {
+  --button-outline: rgba(201, 168, 76, 0.20);
+  --badge-outline: rgba(201, 168, 76, 0.10);
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .09);
+
+  /* JKR Brand */
+  --jkr-gold: #C9A84C;
+  --jkr-gold-dim: #a88530;
+  --jkr-bg: #111111;
+  --jkr-card: #1a1a1a;
+  --jkr-input: #252525;
+  --jkr-border: #333333;
+  --jkr-border-focus: #C9A84C;
+
+  /* Base shadcn tokens — mapped to JKR dark theme */
+  --background: 0 0% 6.7%;        /* #111111 */
+  --foreground: 0 0% 97%;
+  --border: 0 0% 20%;             /* #333333 */
+  --card: 0 0% 10%;               /* #1a1a1a */
+  --card-foreground: 0 0% 97%;
+  --card-border: 0 0% 22%;
+  --sidebar: 0 0% 8%;
+  --sidebar-foreground: 0 0% 97%;
+  --sidebar-border: 0 0% 18%;
+  --sidebar-primary: 43 57% 55%;
+  --sidebar-primary-foreground: 0 0% 8%;
+  --sidebar-accent: 0 0% 16%;
+  --sidebar-accent-foreground: 0 0% 97%;
+  --sidebar-ring: 43 57% 55%;
+  --popover: 0 0% 12%;
+  --popover-foreground: 0 0% 97%;
+  --popover-border: 0 0% 22%;
+  --primary: 43 57% 55%;          /* #C9A84C gold */
+  --primary-foreground: 0 0% 8%;
+  --secondary: 0 0% 18%;
+  --secondary-foreground: 0 0% 97%;
+  --muted: 0 0% 16%;
+  --muted-foreground: 0 0% 60%;
+  --accent: 43 57% 55%;
+  --accent-foreground: 0 0% 8%;
+  --destructive: 0 72% 51%;       /* #ef4444 */
+  --destructive-foreground: 0 0% 97%;
+  --input: 0 0% 15%;              /* #252525 */
+  --ring: 43 57% 55%;
+  --chart-1: 43 57% 55%;
+  --chart-2: 145 63% 42%;
+  --chart-3: 27 87% 55%;
+  --chart-4: 0 72% 51%;
+  --chart-5: 221 83% 65%;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', Menlo, monospace;
+  --radius: 0.5rem;
+
+  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.3);
+  --shadow-xs: 0px 2px 4px 0px hsl(0 0% 0% / 0.3);
+  --shadow-sm: 0px 2px 8px 0px hsl(0 0% 0% / 0.4);
+  --shadow: 0px 4px 12px 0px hsl(0 0% 0% / 0.5);
+  --shadow-md: 0px 6px 16px 0px hsl(0 0% 0% / 0.5);
+  --shadow-lg: 0px 8px 24px 0px hsl(0 0% 0% / 0.6);
+  --shadow-xl: 0px 16px 32px 0px hsl(0 0% 0% / 0.7);
+  --shadow-2xl: 0px 24px 48px 0px hsl(0 0% 0% / 0.8);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+
+  /* Fallback for older browsers */
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+  --primary-border: hsl(var(--primary));
+  --secondary-border: hsl(var(--secondary));
+  --muted-border: hsl(var(--muted));
+  --accent-border: hsl(var(--accent));
+  --destructive-border: hsl(var(--destructive));
+}
+
+/* Force dark mode at all times */
+html {
+  background-color: #111111;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    background-color: #111111;
+    color: hsl(var(--foreground));
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    /* safe area for notched phones */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* iOS input zoom prevention — all inputs 16px min */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+@layer utilities {
+  input[type="search"]::-webkit-search-cancel-button {
+    @apply hidden;
+  }
+
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+
+  .no-default-hover-elevate {}
+  .no-default-active-elevate {}
+
+  .toggle-elevate::before,
+  .toggle-elevate-2::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  .toggle-elevate.toggle-elevated::before {
+    background-color: var(--elevate-2);
+  }
+
+  .border.toggle-elevate::before {
+    inset: -1px;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: 999;
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after {
+    inset: -1px;
+  }
+
+  /* JKR Gold scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #111111;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #333333;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #C9A84C;
+  }
+}
+
+/* JKR Custom component styles */
+.jkr-input {
+  background-color: #252525;
+  border: 1.5px solid #333333;
+  border-radius: 6px;
+  color: #f8f8f8;
+  padding: 12px 14px;
+  min-height: 48px;
+  width: 100%;
+  transition: border-color 0.15s ease;
+  font-size: 16px;
+}
+
+.jkr-input:focus {
+  outline: none;
+  border-color: #C9A84C;
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.15);
+}
+
+.jkr-input::placeholder {
+  color: #666666;
+}
+
+.jkr-section-header {
+  background-color: #1a1a1a;
+  border: 1.5px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.jkr-section-header:active {
+  background-color: #202020;
+}
+
+.jkr-section-header.open {
+  border-color: #C9A84C;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: #2a2a2a;
+}
+
+.jkr-section-body {
+  background-color: #1a1a1a;
+  border: 1.5px solid #C9A84C;
+  border-top: none;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.jkr-toggle-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 56px;
+  height: 30px;
+  border-radius: 15px;
+  background-color: #333333;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  border: none;
+  outline: none;
+}
+
+.jkr-toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #888888;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.jkr-toggle-switch:checked {
+  background-color: rgba(201, 168, 76, 0.25);
+}
+
+.jkr-toggle-switch:checked::after {
+  transform: translateX(26px);
+  background-color: #C9A84C;
+}
+
+.jkr-spinner-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  background-color: #252525;
+  border: 1.5px solid #333333;
+  color: #C9A84C;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.jkr-spinner-btn:active {
+  background-color: rgba(201, 168, 76, 0.15);
+  border-color: #C9A84C;
+}
+
+.jkr-spinner-value {
+  min-width: 56px;
+  height: 48px;
+  background-color: #252525;
+  border: 1.5px solid #333333;
+  border-radius: 6px;
+  color: #f8f8f8;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.jkr-gold-alert {
+  background-color: rgba(201, 168, 76, 0.12);
+  border: 1.5px solid #C9A84C;
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #C9A84C;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.jkr-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1.5px solid rgba(245, 158, 11, 0.5);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: #f59e0b;
+  font-size: 13px;
+}
+
+.photo-thumbnail {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1.5px solid #333333;
+  flex-shrink: 0;
+}
+
+.photo-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.photo-strip::-webkit-scrollbar {
+  height: 3px;
+}
+
+.skylight-btn {
+  flex: 1;
+  height: 48px;
+  border-radius: 6px;
+  border: 1.5px solid #333333;
+  background-color: #252525;
+  color: #888888;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.skylight-btn.active {
+  background-color: rgba(201, 168, 76, 0.15);
+  border-color: #C9A84C;
+  color: #C9A84C;
+  font-weight: 600;
+}
+
+/* Bottom safe area for notched iPhones */
+.bottom-bar-safe {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
