@@ -38,9 +38,24 @@
   <div id="root"></div>
 
   <script>
-    // ── JKR_PREFILL: receives job data from the management portal iframe parent ──
-    // Stores data globally so the React app can read it on mount via window.JKR_PREFILL_DATA.
-    // Also fires a DOM event so the app can react if it loads after the message arrives.
+    // ─────────────────────────────────────────────────────────────────────────
+    // JKR PREFILL — receives job data from jkr-management-portal via postMessage
+    // Maps job fields → the exact React input IDs discovered in the compiled bundle.
+    //
+    // Field ID map (from bundle analysis):
+    //   s1-building-name     ← project_name / building_name
+    //   s1-building-address  ← address
+    //   s1-section-name      ← section_name
+    //   s2-slope             ← slope_in_deck
+    //   s2-field-slope       ← field_slope / slope
+    //   s2-crickets-core     ← crickets_core
+    //   s4-material          ← system_type / material_type
+    //   s7-wall-heights      ← wall_heights
+    //   s9-tiein-types       ← tiein_types
+    //   s9-ponding-desc      ← ponding_desc
+    //   s9-ponding-sqft      ← roof_area_sqft (closest sqft field)
+    //   s15-notes (textarea) ← notes / general_notes
+    // ─────────────────────────────────────────────────────────────────────────
 
     window.JKR_PREFILL_DATA = null;
 
@@ -48,60 +63,96 @@
       "https://jkr-management-portal.vercel.app",
       "https://jkr-management-portal-james-king-roofing.vercel.app",
       "https://jkr-management-portal-git-master-james-king-roofing.vercel.app",
-      window.location.origin  // allows local dev (localhost)
+      window.location.origin
     ];
 
-    window.addEventListener("message", function (event) {
-      // Security: only accept from the management portal
+    // Fills a single React-controlled input by id using the native value setter trick.
+    // This bypasses React's own onChange and forces a re-render via synthetic events.
+    function fillReactInput(id, value) {
+      if (value == null || value === "") return;
+      var el = document.getElementById(id);
+      if (!el) return;
+      var proto = el.tagName === "TEXTAREA"
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+      var nativeSetter = Object.getOwnPropertyDescriptor(proto, "value");
+      if (nativeSetter && nativeSetter.set) {
+        nativeSetter.set.call(el, String(value));
+      } else {
+        el.value = String(value);
+      }
+      el.dispatchEvent(new Event("input",  { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    // Build the id→value map from the incoming payload
+    function buildFieldMap(p) {
+      return {
+        "s1-building-name":    p.project_name    || p.building_name    || "",
+        "s1-building-address": p.address         || p.building_address || "",
+        "s1-section-name":     p.section_name    || "",
+        "s2-slope":            p.slope_in_deck   || "",
+        "s2-field-slope":      p.field_slope     || p.slope            || "",
+        "s2-crickets-core":    p.crickets_core   || "",
+        "s4-material":         p.system_type     || p.material_type    || "",
+        "s7-wall-heights":     p.wall_heights    || "",
+        "s9-tiein-types":      p.tiein_types     || "",
+        "s9-ponding-desc":     p.ponding_desc    || "",
+        "s9-ponding-sqft":     p.roof_area_sqft  || p.sqft             || "",
+        "s15-notes":           p.notes           || p.general_notes    || ""
+      };
+    }
+
+    // Apply prefill — retries until all target inputs are present in the DOM
+    function applyPrefill(payload) {
+      var fieldMap = buildFieldMap(payload);
+      var ids = Object.keys(fieldMap);
+      var attempts = 0;
+      var maxAttempts = 40; // 4 seconds max (40 × 100ms)
+
+      function tryFill() {
+        attempts++;
+        var filled = 0;
+        ids.forEach(function(id) {
+          var val = fieldMap[id];
+          if (!val) return;
+          var el = document.getElementById(id);
+          if (el) {
+            fillReactInput(id, val);
+            filled++;
+          }
+        });
+
+        // Retry if the target inputs aren't in the DOM yet (React still mounting)
+        var hasAnyTarget = !!document.getElementById("s1-building-name");
+        if (!hasAnyTarget && attempts < maxAttempts) {
+          setTimeout(tryFill, 100);
+        }
+      }
+
+      tryFill();
+    }
+
+    // Listen for the prefill message from the management portal
+    window.addEventListener("message", function(event) {
       if (!ALLOWED_ORIGINS.includes(event.origin)) return;
       if (!event.data || event.data.type !== "JKR_PREFILL") return;
 
       var payload = event.data.payload;
       if (!payload) return;
 
-      // Store globally so React app can read on mount
+      // Store globally — React app can also read this on mount
       window.JKR_PREFILL_DATA = payload;
 
-      // Also try to fill native inputs directly (fallback if React hasn't mounted yet)
-      var fieldMap = {
-        project_name:    payload.project_name,
-        address:         payload.address,
-        system_type:     payload.system_type,
-        roof_area_sqft:  payload.roof_area_sqft,
-        slope:           payload.slope,
-        flashing_lf:     payload.flashing_lf,
-        edge_metal_lf:   payload.edge_metal_lf,
-        penetrations:    payload.penetrations,
-        drains:          payload.drains,
-        tear_off:        payload.tear_off,
-        difficulty:      payload.difficulty,
-        waste_factor:    payload.waste_factor,
-        notes:           payload.notes
-      };
+      // Apply immediately (with retry until DOM is ready)
+      applyPrefill(payload);
 
-      Object.keys(fieldMap).forEach(function (key) {
-        var val = fieldMap[key];
-        if (val == null) return;
-
-        // Try id, then name attribute
-        var el = document.getElementById(key)
-          || document.querySelector('[name="' + key + '"]');
-        if (!el) return;
-
-        if (el.type === "checkbox") {
-          el.checked = Boolean(val);
-        } else {
-          el.value = val;
-        }
-
-        // Notify React / Vue / any framework listeners
-        el.dispatchEvent(new Event("input",  { bubbles: true }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-
-      // Fire a custom event so the React app can listen for late-arriving data
+      // Also fire a custom event so any listener in the app can react
       window.dispatchEvent(new CustomEvent("jkr:prefill", { detail: payload }));
     });
+
+    // If the page loads AFTER the parent already sent the message (rare but possible),
+    // the parent will re-send on iframe onLoad — so no extra handling needed here.
   </script>
 </body>
 </html>
