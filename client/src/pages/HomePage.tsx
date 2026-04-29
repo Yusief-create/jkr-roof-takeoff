@@ -538,19 +538,7 @@ export default function HomePage() {
           </div>
         </SectionAccordion>
 
-        {/* Attribution */}
-        <div className="text-center py-4 mt-4">
-          <a
-            href="https://www.perplexity.ai/computer"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-[#444] hover:text-[#666] transition-colors"
-          >
-            Created with Perplexity Computer
-          </a>
-        </div>
-      </div>
-
+     
       {/* BOTTOM ACTION BAR */}
       <div
         className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#2a2a2a] bottom-bar-safe"
