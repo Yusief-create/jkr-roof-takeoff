@@ -38,7 +38,70 @@
   <div id="root"></div>
 
   <script>
+    // ── JKR_PREFILL: receives job data from the management portal iframe parent ──
+    // Stores data globally so the React app can read it on mount via window.JKR_PREFILL_DATA.
+    // Also fires a DOM event so the app can react if it loads after the message arrives.
+
     window.JKR_PREFILL_DATA = null;
 
+    var ALLOWED_ORIGINS = [
+      "https://jkr-management-portal.vercel.app",
+      "https://jkr-management-portal-james-king-roofing.vercel.app",
+      "https://jkr-management-portal-git-master-james-king-roofing.vercel.app",
+      window.location.origin  // allows local dev (localhost)
+    ];
+
     window.addEventListener("message", function (event) {
-      const all
+      // Security: only accept from the management portal
+      if (!ALLOWED_ORIGINS.includes(event.origin)) return;
+      if (!event.data || event.data.type !== "JKR_PREFILL") return;
+
+      var payload = event.data.payload;
+      if (!payload) return;
+
+      // Store globally so React app can read on mount
+      window.JKR_PREFILL_DATA = payload;
+
+      // Also try to fill native inputs directly (fallback if React hasn't mounted yet)
+      var fieldMap = {
+        project_name:    payload.project_name,
+        address:         payload.address,
+        system_type:     payload.system_type,
+        roof_area_sqft:  payload.roof_area_sqft,
+        slope:           payload.slope,
+        flashing_lf:     payload.flashing_lf,
+        edge_metal_lf:   payload.edge_metal_lf,
+        penetrations:    payload.penetrations,
+        drains:          payload.drains,
+        tear_off:        payload.tear_off,
+        difficulty:      payload.difficulty,
+        waste_factor:    payload.waste_factor,
+        notes:           payload.notes
+      };
+
+      Object.keys(fieldMap).forEach(function (key) {
+        var val = fieldMap[key];
+        if (val == null) return;
+
+        // Try id, then name attribute
+        var el = document.getElementById(key)
+          || document.querySelector('[name="' + key + '"]');
+        if (!el) return;
+
+        if (el.type === "checkbox") {
+          el.checked = Boolean(val);
+        } else {
+          el.value = val;
+        }
+
+        // Notify React / Vue / any framework listeners
+        el.dispatchEvent(new Event("input",  { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+
+      // Fire a custom event so the React app can listen for late-arriving data
+      window.dispatchEvent(new CustomEvent("jkr:prefill", { detail: payload }));
+    });
+  </script>
+</body>
+</html>
