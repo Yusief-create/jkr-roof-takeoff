@@ -38,36 +38,190 @@
   <div id="root"></div>
 
   <script>
-    // ─────────────────────────────────────────────────────────────────────────
-    // JKR PREFILL — receives job data from jkr-management-portal via postMessage
-    // Maps job fields → the exact React input IDs discovered in the compiled bundle.
+    // ═══════════════════════════════════════════════════════════════════════
+    // JKR BRIDGE — Connects jkr-roof-takeoff ↔ jkr-management-portal
     //
-    // Field ID map (from bundle analysis):
-    //   s1-building-name     ← project_name / building_name
-    //   s1-building-address  ← address
-    //   s1-section-name      ← section_name
-    //   s2-slope             ← slope_in_deck
-    //   s2-field-slope       ← field_slope / slope
-    //   s2-crickets-core     ← crickets_core
-    //   s4-material          ← system_type / material_type
-    //   s7-wall-heights      ← wall_heights
-    //   s9-tiein-types       ← tiein_types
-    //   s9-ponding-desc      ← ponding_desc
-    //   s9-ponding-sqft      ← roof_area_sqft (closest sqft field)
-    //   s15-notes (textarea) ← notes / general_notes
-    // ─────────────────────────────────────────────────────────────────────────
+    // Part 1: RECEIVE prefill from portal  (JKR_PREFILL)
+    // Part 2: SEND form data to portal     (JKR_TAKEOFF_SUBMIT)
+    //         Fires when Save Draft is clicked — intercepts btn-save-draft
+    //         and btn-save-draft-bottom and collects all DOM field values.
+    // ═══════════════════════════════════════════════════════════════════════
 
     window.JKR_PREFILL_DATA = null;
 
-    var ALLOWED_ORIGINS = [
+    var PORTAL_ORIGINS = [
       "https://jkr-management-portal.vercel.app",
       "https://jkr-management-portal-james-king-roofing.vercel.app",
       "https://jkr-management-portal-git-master-james-king-roofing.vercel.app",
       window.location.origin
     ];
 
-    // Fills a single React-controlled input by id using the native value setter trick.
-    // This bypasses React's own onChange and forces a re-render via synthetic events.
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    function getInput(id) {
+      var el = document.getElementById(id);
+      return el ? el.value || "" : "";
+    }
+
+    function getCheckbox(id) {
+      var el = document.getElementById(id);
+      return el ? el.checked : false;
+    }
+
+    // Spinner values live in <div data-testid="spinner-value-{label-kebab}">
+    function getSpinner(labelKebab) {
+      var el = document.querySelector('[data-testid="spinner-value-' + labelKebab + '"]');
+      return el ? parseInt(el.textContent || "0", 10) : 0;
+    }
+
+    // Toggle checkboxes: id = "toggle-{label-kebab-stripped}"
+    function getToggle(labelKebab) {
+      var el = document.getElementById("toggle-" + labelKebab);
+      if (!el) el = document.querySelector('[data-testid="toggle-toggle-' + labelKebab + '"]');
+      return el ? el.checked : false;
+    }
+
+    // Collect the complete form state from the live DOM
+    function collectFormState() {
+      return {
+        // ── Section 1: Project Info ──
+        project_name:        getInput("s1-building-name"),
+        address:             getInput("s1-building-address"),
+        section_name:        getInput("s1-section-name"),
+        section_name_2:      getInput("s1-section-name-2"),
+
+        // ── Section 2: Slope ──
+        slope_in_deck:       getInput("s2-slope"),
+        slope:               getInput("s2-field-slope"),
+        crickets_core:       getInput("s2-crickets-core"),
+
+        // ── Section 4: Existing Roof ──
+        layers:              getSpinner("layers-of-existing-roofing---qty"),
+        system_type:         getInput("s4-material"),
+
+        // ── Section 5: Drainage ──
+        gutters_qty:         getSpinner("gutters-qty"),
+        scuppers:            getSpinner("scuppers-qty"),
+        drains:              getSpinner("int.-drains"),
+        gutters_lf:          getSpinner("gutters-lnft"),
+        downspouts_lf:       getSpinner("downspouts-lnft"),
+        overflows_qty:       getSpinner("overflows-qty"),
+
+        // ── Section 6: Flashing ──
+        flashing_min_8in:    getToggle("flashing-heights-min-8"),
+        low_flashing:        getToggle("low-flashing-heights"),
+
+        // ── Section 7: Curbs ──
+        curbs_desc:          getInput("s7-curbs-desc"),
+        wall_heights:        getInput("s7-wall-heights"),
+        flashing_lf:         getSpinner("linear-feet"),
+
+        // ── Section 8: Safety ──
+        existing_anchors:    getToggle("existing-safety-anchors"),
+        anchors_certified:   getToggle("are-they-certified"),
+        safety_notes:        getInput("s8-safety-notes") || getInput("s8-notes"),
+
+        // ── Section 9: Tie-ins & Conditions ──
+        tie_in:              getToggle("tie-in-to-existing-roofs"),
+        tiein_types:         getInput("s9-tiein-types"),
+        ponding_water:       getToggle("ponding-water"),
+        ponding_desc:        getInput("s9-ponding-desc"),
+        roof_area_sqft:      getInput("s9-ponding-sqft"),
+        pitch_plans:         getSpinner("#-of-pitch-plans"),
+        pipe_boots:          getSpinner("pipe-boots"),
+
+        // ── Section 10: Lightning & Satellites ──
+        lightning_protection: getToggle("lightning-protection-in-place"),
+        lightning_quote:     getInput("s10-lightning-quote"),
+        satellite_dishes:    getToggle("satellite-dishes"),
+        satellite_qty:       getSpinner("satellite-qty"),
+
+        // ── Section 11: Walk Pads ──
+        walk_pads:           getToggle("walk-pads-existing"),
+        walk_pads_lf:        getSpinner("walk-pads-lf"),
+        walk_pads_lnft:      getInput("s11-walkpads-lnft"),
+        walk_pads_quote:     getInput("s11-walkpads-quote"),
+        grease_traps:        getToggle("grease-traps"),
+        grease_price:        getInput("s11-grease-price"),
+
+        // ── Section 12: Skylights ──
+        skylight_details:    getInput("s12-skylight-details"),
+
+        // ── Section 13: Roof Access ──
+        roof_hatch:          getToggle("roof-hatch"),
+        exterior_ladder:     getToggle("exterior-mounted-safety-ladder"),
+        extension_ladder:    getToggle("extension-ladder"),
+        ladder_size:         getInput("s13-ladder-size"),
+
+        // ── Section 14: Misc ──
+        gas_line_lf:         getSpinner("gas-line-lnft"),
+        need_to_paint:       getToggle("need-to-paint"),
+        support_blocks:      getToggle("support-blocks-replacement"),
+        wood_sleepers_lf:    getSpinner("wood-sleepers-supports-lnft"),
+        bad_electrical_lf:   getSpinner("bad-electrical-conduit-lnft"),
+
+        // ── Section 15: Notes ──
+        notes:               getInput("s15-notes") || getInput("notes"),
+
+        // Metadata
+        saved_at:            new Date().toISOString()
+      };
+    }
+
+    // Send payload to the parent portal window
+    function sendToPortal(payload) {
+      // In iframe context
+      if (window.parent && window.parent !== window) {
+        PORTAL_ORIGINS.forEach(function(origin) {
+          try {
+            window.parent.postMessage({ type: "JKR_TAKEOFF_SUBMIT", payload: payload }, origin);
+          } catch(e) {}
+        });
+      }
+      // Also try wildcard as fallback
+      try {
+        window.parent.postMessage({ type: "JKR_TAKEOFF_SUBMIT", payload: payload }, "*");
+      } catch(e) {}
+    }
+
+    // ── Part 2: Intercept the Save Draft button ───────────────────────────
+
+    function interceptSaveButtons() {
+      var SAVE_TESTIDS = ["btn-save-draft", "btn-save-draft-bottom"];
+
+      SAVE_TESTIDS.forEach(function(testid) {
+        var btn = document.querySelector('[data-testid="' + testid + '"]');
+        if (!btn || btn._jkrPatched) return;
+        btn._jkrPatched = true;
+
+        btn.addEventListener("click", function() {
+          // Small delay so React processes its own save first, then we collect
+          setTimeout(function() {
+            var payload = collectFormState();
+            if (payload.project_name || payload.address || payload.system_type) {
+              sendToPortal(payload);
+            }
+          }, 150);
+        }, true); // capture phase so we fire even if React stops propagation
+      });
+    }
+
+    // Watch for the buttons to appear (React renders them after mount)
+    var saveObserver = new MutationObserver(function() {
+      interceptSaveButtons();
+    });
+
+    saveObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Also try immediately and after a short delay for fast renders
+    interceptSaveButtons();
+    setTimeout(interceptSaveButtons, 500);
+    setTimeout(interceptSaveButtons, 1500);
+
+    // ── Part 1: Receive prefill from portal ───────────────────────────────
+
+    var ALLOWED_ORIGINS = PORTAL_ORIGINS;
+
     function fillReactInput(id, value) {
       if (value == null || value === "") return;
       var el = document.getElementById(id);
@@ -85,74 +239,43 @@
       el.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    // Build the id→value map from the incoming payload
-    function buildFieldMap(p) {
-      return {
+    function applyPrefill(p) {
+      var fieldMap = {
         "s1-building-name":    p.project_name    || p.building_name    || "",
         "s1-building-address": p.address         || p.building_address || "",
         "s1-section-name":     p.section_name    || "",
         "s2-slope":            p.slope_in_deck   || "",
-        "s2-field-slope":      p.field_slope     || p.slope            || "",
-        "s2-crickets-core":    p.crickets_core   || "",
+        "s2-field-slope":      p.slope           || p.field_slope      || "",
         "s4-material":         p.system_type     || p.material_type    || "",
         "s7-wall-heights":     p.wall_heights    || "",
-        "s9-tiein-types":      p.tiein_types     || "",
-        "s9-ponding-desc":     p.ponding_desc    || "",
         "s9-ponding-sqft":     p.roof_area_sqft  || p.sqft             || "",
-        "s15-notes":           p.notes           || p.general_notes    || ""
+        "s9-tiein-types":      p.tiein_types     || "",
       };
-    }
 
-    // Apply prefill — retries until all target inputs are present in the DOM
-    function applyPrefill(payload) {
-      var fieldMap = buildFieldMap(payload);
-      var ids = Object.keys(fieldMap);
       var attempts = 0;
-      var maxAttempts = 40; // 4 seconds max (40 × 100ms)
-
       function tryFill() {
         attempts++;
-        var filled = 0;
-        ids.forEach(function(id) {
-          var val = fieldMap[id];
-          if (!val) return;
-          var el = document.getElementById(id);
-          if (el) {
-            fillReactInput(id, val);
-            filled++;
-          }
+        Object.keys(fieldMap).forEach(function(id) {
+          if (fieldMap[id]) fillReactInput(id, fieldMap[id]);
         });
-
-        // Retry if the target inputs aren't in the DOM yet (React still mounting)
-        var hasAnyTarget = !!document.getElementById("s1-building-name");
-        if (!hasAnyTarget && attempts < maxAttempts) {
-          setTimeout(tryFill, 100);
-        }
+        var ready = !!document.getElementById("s1-building-name");
+        if (!ready && attempts < 40) setTimeout(tryFill, 100);
       }
-
       tryFill();
     }
 
-    // Listen for the prefill message from the management portal
     window.addEventListener("message", function(event) {
       if (!ALLOWED_ORIGINS.includes(event.origin)) return;
-      if (!event.data || event.data.type !== "JKR_PREFILL") return;
+      if (!event.data) return;
 
-      var payload = event.data.payload;
-      if (!payload) return;
-
-      // Store globally — React app can also read this on mount
-      window.JKR_PREFILL_DATA = payload;
-
-      // Apply immediately (with retry until DOM is ready)
-      applyPrefill(payload);
-
-      // Also fire a custom event so any listener in the app can react
-      window.dispatchEvent(new CustomEvent("jkr:prefill", { detail: payload }));
+      if (event.data.type === "JKR_PREFILL") {
+        var payload = event.data.payload;
+        if (!payload) return;
+        window.JKR_PREFILL_DATA = payload;
+        applyPrefill(payload);
+        window.dispatchEvent(new CustomEvent("jkr:prefill", { detail: payload }));
+      }
     });
-
-    // If the page loads AFTER the parent already sent the message (rare but possible),
-    // the parent will re-send on iframe onLoad — so no extra handling needed here.
   </script>
 </body>
 </html>
